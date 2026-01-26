@@ -1,0 +1,75 @@
+name: determine-changes
+
+on:
+  workflow_call:
+    inputs:
+      base_sha:
+        type: string
+        required: true
+    outputs:
+      count:
+        description: "Number of affected packages with action scripts"
+        value: ${{ jobs.determine.outputs.count }}
+      matrix:
+        description: "Matrix JSON: { include: [{ name, dir }] }"
+        value: ${{ jobs.determine.outputs.matrix }}
+
+jobs:
+  determine:
+    runs-on: ubuntu-latest
+    outputs:
+      count: ${{ steps.out.outputs.count }}
+      matrix: ${{ steps.out.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # No install needed: we only need pnpm to resolve the workspace graph + filter.
+      - id: out
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${{ inputs.base_sha }}"
+
+          pnpm -r --stream --filter "...[${BASE}]" exec -- sh -lc \
+            'printf "__AFFECTED__%s\t%s\n" "${PNPM_PACKAGE_NAME:-}" "$PWD"' \
+            > affected.txt
+
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require("fs");
+          const path = require("path");
+
+          const lines = fs.readFileSync("affected.txt", "utf8")
+            .split("\n")
+            .filter(l => l.includes("__AFFECTED__"))
+            .map(l => l.slice(l.indexOf("__AFFECTED__") + "__AFFECTED__".length).trim())
+            .filter(Boolean);
+
+          const seen = new Set();
+          const include = [];
+
+          for (const line of lines) {
+            const [nameRaw, dirRaw] = line.split("\t");
+            const name = (nameRaw || "").trim() || null;
+            const dir = (dirRaw || "").trim();
+            if (!dir || seen.has(dir)) continue;
+            seen.add(dir);
+
+            const hasBuild = fs.existsSync(path.join(dir, "build.action.ts"));
+            const hasDeploy = fs.existsSync(path.join(dir, "deploy.action.ts"));
+
+            if (hasBuild || hasDeploy) include.push({ name, dir });
+          }
+
+          console.log(`count=${include.length}`);
+          console.log(`matrix=${JSON.stringify({ include })}`);
+          NODE

@@ -1,0 +1,22 @@
+name: on-pr
+
+on:
+  pull_request:
+
+jobs:
+  determine:
+    uses: ./.github/workflows/determine_changes.template.yml
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha }}
+
+  run:
+    needs: determine
+    if: needs.determine.outputs.count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.determine.outputs.matrix) }}
+    uses: ./.github/workflows/run_ci.template.yml
+    with:
+      dir: ${{ matrix.dir }}
+      name: ${{ matrix.name }}
+      deploy: false

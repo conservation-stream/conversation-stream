@@ -1,0 +1,10 @@
+packages:
+  - 'apps/site'
+  - 'apps/site/infra'
+  - 'apps/kb/bridge'
+  - 'apps/kb/infra'
+  - 'internal/errors'
+  - 'internal/actions'
+  - 'packages/mtx-agent'
+  - 'packages/mtx-manager'
+  
