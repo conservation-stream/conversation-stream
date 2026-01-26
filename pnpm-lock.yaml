@@ -7,3 +7,5 @@ settings:
 importers:
 
   .: {}
+
+  apps/kb/bridge: {}

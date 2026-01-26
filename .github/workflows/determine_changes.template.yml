@@ -25,51 +25,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: package.json
+          cache: pnpm
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      # No install needed: we only need pnpm to resolve the workspace graph + filter.
       - id: out
         shell: bash
-        run: |
-          set -euo pipefail
-          BASE="${{ inputs.base_sha }}"
-
-          pnpm -r --stream --filter "...[${BASE}]" exec -- sh -lc \
-            'printf "__AFFECTED__%s\t%s\n" "${PNPM_PACKAGE_NAME:-}" "$PWD"' \
-            > affected.txt
-
-          node <<'NODE' >> "$GITHUB_OUTPUT"
-          const fs = require("fs");
-          const path = require("path");
-
-          const lines = fs.readFileSync("affected.txt", "utf8")
-            .split("\n")
-            .filter(l => l.includes("__AFFECTED__"))
-            .map(l => l.slice(l.indexOf("__AFFECTED__") + "__AFFECTED__".length).trim())
-            .filter(Boolean);
-
-          const seen = new Set();
-          const include = [];
-
-          for (const line of lines) {
-            const [nameRaw, dirRaw] = line.split("\t");
-            const name = (nameRaw || "").trim() || null;
-            const dir = (dirRaw || "").trim();
-            if (!dir || seen.has(dir)) continue;
-            seen.add(dir);
-
-            const hasBuild = fs.existsSync(path.join(dir, "build.action.ts"));
-            const hasDeploy = fs.existsSync(path.join(dir, "deploy.action.ts"));
-
-            if (hasBuild || hasDeploy) include.push({ name, dir });
-          }
-
-          console.log(`count=${include.length}`);
-          console.log(`matrix=${JSON.stringify({ include })}`);
-          NODE
+        run: pnpm -r --stream --filter "...[${{ inputs.base_sha }}]" exec -- pwd
