@@ -114,7 +114,6 @@ type BuildEnv = CoreGithubActionEnvironment & {
 
 export const build = async (fn: (env: BuildEnv) => Promise<void | ActionResult> | void | ActionResult) => {
   if (env.MATRIX_ONLY) return; // Allow importing for matrix extraction without running
-
   const parsed = CoreGithubActionEnvironment.parse(env);
   const event = await fs.readFile(parsed.GITHUB_EVENT_PATH, "utf8");
   const matrix = parseMatrixEnv();

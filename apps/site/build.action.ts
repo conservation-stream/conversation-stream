@@ -17,7 +17,8 @@ type BuildOutput = z.infer<typeof BuildOutput>;
 const RequiredSecrets = z.string().transform((value) => JSON.parse(value)).pipe(z.object({
   CLOUDFLARE_API_TOKEN: z.string(),
   CLOUDFLARE_ACCOUNT_ID: z.string(),
-  github_token: z.string(),
+  github_token: z.string().optional(),
+  GITHUB_TOKEN: z.string().optional(),
 }))
 
 
@@ -47,6 +48,12 @@ class TemporaryDirectory {
 await build(async (env) => {
   const secrets = RequiredSecrets.parse(env.SECRETS);
   using tmp = new TemporaryDirectory();
+
+  if (!secrets.github_token && !secrets.GITHUB_TOKEN) {
+    throw new Error("No GitHub token found");
+  }
+  const token = secrets.github_token ?? secrets.GITHUB_TOKEN;
+  console.log(token);
 
   $.env = {
     ...$.env,

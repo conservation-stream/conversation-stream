@@ -8,10 +8,8 @@ on:
         required: true
     outputs:
       count:
-        description: "Number of affected packages with action scripts"
         value: ${{ jobs.determine.outputs.count }}
       matrix:
-        description: "Matrix JSON: { include: [{ name, dir, build_matrix }] }"
         value: ${{ jobs.determine.outputs.matrix }}
 
 jobs:
@@ -21,13 +19,6 @@ jobs:
       count: ${{ steps.out.outputs.count }}
       matrix: ${{ steps.out.outputs.matrix }}
     steps:
-      - name: Debug
-        run: |
-          echo "base_sha: ${{ inputs.base_sha }}"
-          echo "pwd: $(pwd)"
-          echo "ls -la"
-          ls -la
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
