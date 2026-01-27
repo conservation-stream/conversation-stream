@@ -6,6 +6,8 @@ export const CoreGithubActionEnvironment = z.object({
   // General / CI
   GITHUB_ACTIONS: z.string(),
 
+  GITHUB_TOKEN: z.string(),
+
   // Current step/action
   GITHUB_ACTION: z.string(),
   GITHUB_ACTION_PATH: z.string().optional(), // composite actions only
