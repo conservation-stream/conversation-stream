@@ -18,6 +18,10 @@ on:
         required: false
         default: '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}'
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   build:
     name: build (${{ matrix.matrix_key }})
