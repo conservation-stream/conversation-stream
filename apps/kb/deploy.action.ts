@@ -8,7 +8,7 @@ import { BuildOutput, matrix } from "./build.action.ts";
  */
 await deploy(async (env) => {
   // env.matrix.arch is typed as "amd64" | "arm64"
-  console.log(`Deploying ${env.matrix.arch} build`);
+  console.log(`Deploying ${env.matrix.arch} build:`);
   console.log(`  digest: ${env.build.digest}`);
   console.log(`  timestamp: ${env.build.timestamp.toISOString()}`);
 
