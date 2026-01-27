@@ -16,6 +16,7 @@ jobs:
       base_sha: ${{ github.event.before }}
 
   run:
+    name: ${{ matrix.name }}
     needs: determine
     if: needs.determine.outputs.count != '0'
     strategy:

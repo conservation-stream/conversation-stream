@@ -20,6 +20,7 @@ on:
 
 jobs:
   build:
+    name: build (${{ matrix.matrix_key }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     strategy:
@@ -52,6 +53,7 @@ jobs:
           node build.action.ts
 
   deploy:
+    name: deploy
     needs: build
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
