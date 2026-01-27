@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   determine:
     uses: ./.github/workflows/determine_changes.template.yml

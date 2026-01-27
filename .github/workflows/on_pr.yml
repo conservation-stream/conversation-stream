@@ -3,6 +3,10 @@ name: on-pr
 on:
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   determine:
     uses: ./.github/workflows/determine_changes.template.yml

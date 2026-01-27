@@ -18,10 +18,6 @@ on:
         required: false
         default: '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}'
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
