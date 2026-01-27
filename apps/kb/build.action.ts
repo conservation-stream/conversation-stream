@@ -1,21 +1,14 @@
-import { build, type MatrixConfig } from "@conservation-stream/internal-actions";
+import { build } from "@conservation-stream/internal-actions";
 import { z } from "zod";
 
-/**
- * Matrix configuration for multi-arch builds.
- * This will trigger parallel build jobs for each combination.
- */
-export const matrix = {
-  arch: ["amd64", "arm64"],
-} as const satisfies MatrixConfig;
 
-export const BuildOutput = z.object({
+export const schema = z.object({
   arch: z.string(),
   digest: z.string(),
   timestamp: z.coerce.date(),
 });
 
-type BuildOutput = z.infer<typeof BuildOutput>;
+type schema = z.infer<typeof schema>;
 
 await build(async (env) => {
   // env.matrix contains the current matrix values, e.g. { arch: "amd64" }
@@ -28,6 +21,6 @@ await build(async (env) => {
       arch: env.matrix.arch,
       digest,
       timestamp: new Date(),
-    } satisfies BuildOutput,
+    } satisfies schema,
   };
 });

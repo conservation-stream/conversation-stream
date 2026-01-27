@@ -1,5 +1,5 @@
 import { deploy } from "@conservation-stream/internal-actions";
-import { BuildOutput, matrix } from "./build.action.ts";
+import { schema } from "./build.action.ts";
 
 /**
  * Deploy runs once per matrix entry.
@@ -16,4 +16,4 @@ await deploy(async (env) => {
   // - Push to registry with arch-specific tag
   // - Update deployment for this arch
   // - Store digest somewhere for finalize to pick up
-}, { schema: BuildOutput, matrix });
+}, { schema });

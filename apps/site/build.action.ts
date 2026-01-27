@@ -1,9 +1,11 @@
+import { DefaultArtifactClient } from "@actions/artifact";
 import { build } from "@conservation-stream/internal-actions";
-import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import { $, fs } from "zx";
+
+const artifact = new DefaultArtifactClient();
 
 export const BuildOutput = z.object({
   version_id: z.string(),
@@ -15,33 +17,36 @@ type BuildOutput = z.infer<typeof BuildOutput>;
 const RequiredSecrets = z.string().transform((value) => JSON.parse(value)).pipe(z.object({
   CLOUDFLARE_API_TOKEN: z.string(),
   CLOUDFLARE_ACCOUNT_ID: z.string(),
+  GITHUB_TOKEN: z.string(),
 }))
 
-class TemporaryFile {
+
+class TemporaryDirectory {
   public readonly path: string;
   constructor() {
     const id = crypto.randomUUID();
-    this.path = path.join(tmpdir(), `actions/${id}.ndjson`);
+    this.path = path.join(tmpdir(), `actions/${id}`);
   }
   [Symbol.dispose]() {
-    fs.unlinkSync(this.path);
+    fs.rm(this.path, { recursive: true });
   }
 }
 
-const run = async () => {
-  using file = new TemporaryFile();
-  $.env = {
-    ...$.env,
-    WRANGLER_OUTPUT_FILE_PATH: file.path,
-  }
-  await $`pnpm exec wrangler versions upload`;
-  const contents = await readFile(file.path, "utf8");
-  return contents.split("\n").filter(Boolean).map(line => JSON.parse(line)) as WranglerEvent[];
-}
+// const run = async () => {
+//   using file = new TemporaryFile();
+//   $.env = {
+//     ...$.env,
+//     WRANGLER_OUTPUT_FILE_PATH: file.path,
+//   }
+//   await $`pnpm exec wrangler versions upload`;
+//   const contents = await readFile(file.path, "utf8");
+//   return contents.split("\n").filter(Boolean).map(line => JSON.parse(line)) as WranglerEvent[];
+// }
 
 
 await build(async (env) => {
   const secrets = RequiredSecrets.parse(env.SECRETS);
+  using tmp = new TemporaryDirectory();
 
   $.env = {
     ...$.env,
@@ -50,38 +55,48 @@ await build(async (env) => {
   }
 
   await $`pnpm build`;
-  const result = await run();
+  await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy`;
 
-  const upload = result.find(event => event.type === "version-upload");
-  if (!upload) {
-    throw new Error("No version upload event found");
-  }
+  const res = await artifact.uploadArtifact('build', ['/Users/jameswilliams/Developer/conservation/apps/site/index.html'], '/Users/jameswilliams/Developer/conservation/apps/site');
+  console.log(JSON.stringify(res));
 
-  return {
-    payload: { version_id: upload.version_id, preview_url: upload.preview_url } satisfies BuildOutput
-  }
+
+  return;
+
+
+
+  // const result = await run();
+
+  // const upload = result.find(event => event.type === "version-upload");
+  // if (!upload) {
+  //   throw new Error("No version upload event found");
+  // }
+
+  // return {
+  //   payload: { version_id: upload.version_id, preview_url: upload.preview_url } satisfies BuildOutput
+  // }
 })
 
 
-type CoreWranglerEvent = {
-  type: string;
-  timestamp: string;
-  version: number;
-}
+// type CoreWranglerEvent = {
+//   type: string;
+//   timestamp: string;
+//   version: number;
+// }
 
-interface WranglerSessionEvent extends CoreWranglerEvent {
-  type: "wrangler-session";
-  wrangler_version: string;
-  command_line_args: string[];
-  log_file_path: string;
-}
+// interface WranglerSessionEvent extends CoreWranglerEvent {
+//   type: "wrangler-session";
+//   wrangler_version: string;
+//   command_line_args: string[];
+//   log_file_path: string;
+// }
 
-interface WranglerVersionUploadEvent extends CoreWranglerEvent {
-  type: "version-upload";
-  worker_name: string;
-  worker_tag: string;
-  version_id: string;
-  preview_url: string;
-}
+// interface WranglerVersionUploadEvent extends CoreWranglerEvent {
+//   type: "version-upload";
+//   worker_name: string;
+//   worker_tag: string;
+//   version_id: string;
+//   preview_url: string;
+// }
 
-type WranglerEvent = WranglerSessionEvent | WranglerVersionUploadEvent;
+// type WranglerEvent = WranglerSessionEvent | WranglerVersionUploadEvent;

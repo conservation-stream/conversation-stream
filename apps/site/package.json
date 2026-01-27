@@ -1,5 +1,5 @@
 {
-  "name": "site",
+  "name": "@conservation-stream/site",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -15,6 +15,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@actions/artifact": "^5.0.3",
     "@cloudflare/vite-plugin": "^1.21.2",
     "@cloudflare/workers-types": "^4.20260124.0",
     "@conservation-stream/internal-actions": "workspace:*",
