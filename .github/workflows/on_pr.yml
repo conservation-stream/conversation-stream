@@ -19,4 +19,3 @@ jobs:
     with:
       dir: ${{ matrix.dir }}
       name: ${{ matrix.name }}
-      deploy: false

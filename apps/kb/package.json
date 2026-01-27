@@ -1,0 +1,12 @@
+{
+  "name": "@conservation-stream/kb",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@conservation-stream/internal-actions": "workspace:*",
+    "@types/node": "latest"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  }
+}

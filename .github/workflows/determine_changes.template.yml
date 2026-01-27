@@ -11,7 +11,7 @@ on:
         description: "Number of affected packages with action scripts"
         value: ${{ jobs.determine.outputs.count }}
       matrix:
-        description: "Matrix JSON: { include: [{ name, dir }] }"
+        description: "Matrix JSON: { include: [{ name, dir, build_matrix }] }"
         value: ${{ jobs.determine.outputs.matrix }}
 
 jobs:
@@ -21,6 +21,13 @@ jobs:
       count: ${{ steps.out.outputs.count }}
       matrix: ${{ steps.out.outputs.matrix }}
     steps:
+      - name: Debug
+        run: |
+          echo "base_sha: ${{ inputs.base_sha }}"
+          echo "pwd: $(pwd)"
+          echo "ls -la"
+          ls -la
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -31,6 +38,10 @@ jobs:
           node-version-file: package.json
           cache: pnpm
 
+      - run: pnpm install --frozen-lockfile
+
       - id: out
         shell: bash
-        run: pnpm -r --stream --filter "...[${{ inputs.base_sha }}]" exec -- pwd
+        run: pnpm --filter @conservation-stream/internal-scripts run determine-changes
+        env:
+          SECRETS: ${{ toJSON(secrets) }}

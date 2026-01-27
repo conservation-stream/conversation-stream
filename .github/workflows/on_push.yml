@@ -7,6 +7,7 @@ on:
 jobs:
   determine:
     uses: ./.github/workflows/determine_changes.template.yml
+    secrets: inherit
     with:
       base_sha: ${{ github.event.before }}
 
@@ -17,7 +18,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.determine.outputs.matrix) }}
     uses: ./.github/workflows/run_ci.template.yml
+    secrets: inherit
     with:
       dir: ${{ matrix.dir }}
       name: ${{ matrix.name }}
-      deploy: true
+      environment: production
+      build_matrix: ${{ matrix.build_matrix && toJSON(matrix.build_matrix) || '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}' }}

@@ -1,10 +1,14 @@
 packages:
-  - 'apps/site'
-  - 'apps/site/infra'
-  - 'apps/kb/bridge'
-  - 'apps/kb/infra'
-  - 'internal/errors'
-  - 'internal/actions'
-  - 'packages/mtx-agent'
-  - 'packages/mtx-manager'
-  
+  - apps/site
+  - apps/site/infra
+  - apps/kb
+  - apps/kb/bridge
+  - apps/kb/infra
+  - internal/errors
+  - internal/actions
+  - internal/scripts
+  - packages/mtx-agent
+  - packages/mtx-manager
+
+catalog:
+  zod: ^4.3.6

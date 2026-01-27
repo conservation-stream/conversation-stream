@@ -1,0 +1,18 @@
+{
+  "name": "@conservation-stream/internal-scripts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "determine-changes": "node index.ts"
+  },
+  "devDependencies": {
+    "@conservation-stream/internal-actions": "workspace:*",
+    "@types/node": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  }
+}

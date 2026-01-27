@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+
+import { build, type MatrixConfig } from "@conservation-stream/internal-actions";
+import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+/** Walk up from dir looking for build.action.ts + deploy.action.ts */
+const findActionDir = (dir: string, root: string): string | null => {
+  if (existsSync(path.join(dir, "build.action.ts")) && existsSync(path.join(dir, "deploy.action.ts"))) {
+    return dir;
+  }
+  const parent = path.dirname(dir);
+  return parent === root ? null : findActionDir(parent, root);
+};
+
+/** Import build.action.ts and extract matrix export (build/deploy no-op due to MATRIX_ONLY) */
+const getMatrix = async (filePath: string): Promise<MatrixConfig | null> => {
+  process.env.MATRIX_ONLY = "1";
+  try {
+    const mod = await import(pathToFileURL(filePath).href);
+    return mod.matrix ?? null;
+  } catch {
+    return null;
+  } finally {
+    delete process.env.MATRIX_ONLY;
+  }
+};
+
+/** Cartesian product of matrix values → GH Actions format */
+const expandMatrix = (matrix: MatrixConfig) => {
+  let combos: Record<string, string>[] = [{}];
+  for (const key of Object.keys(matrix)) {
+    combos = combos.flatMap(combo => matrix[key].map(v => ({ ...combo, [key]: v })));
+  }
+  return {
+    include: combos.map(c => ({
+      matrix_key: Object.values(c).join("-"),
+      matrix_values_json: JSON.stringify(c),
+    })),
+  };
+};
+
+await build(async (env) => {
+  const output = execSync(`pnpm -r --stream --filter "...[${env.event.before}]" exec -- pwd`);
+  const changed = output.toString("utf-8").split("\n").filter(Boolean);
+
+  const packages = new Map<string, string>();
+  for (const line of changed) {
+    if (line === env.GITHUB_WORKSPACE) continue;
+    const dir = findActionDir(line, env.GITHUB_WORKSPACE);
+    if (dir) packages.set(dir, path.basename(dir));
+  }
+
+  const include = await Promise.all(
+    [...packages].map(async ([dir, name]) => {
+      const matrix = await getMatrix(path.join(dir, "build.action.ts"));
+
+      if (matrix) {
+        const build_matrix = expandMatrix(matrix);
+        console.log(`${name}: ${build_matrix.include.length} matrix jobs`);
+        return { dir, name, build_matrix };
+      }
+
+      return { dir, name };
+    })
+  );
+
+  return { count: include.length, matrix: { include } };
+});

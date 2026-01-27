@@ -6,9 +6,17 @@ on:
       dir:
         type: string
         required: true
+      name:
+        type: string
+        required: true
       environment:
         type: string
         required: true
+      # GitHub Actions matrix format, ready for fromJSON()
+      build_matrix:
+        type: string
+        required: false
+        default: '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}'
 
 permissions:
   contents: read
@@ -17,6 +25,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build_matrix || '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}') }}
     outputs:
       payload: ${{ steps.build_action.outputs.payload }}
     steps:
@@ -30,22 +42,21 @@ jobs:
           node-version-file: package.json
           cache: pnpm
 
-
-      - uses: oven-sh/setup-bun@v2
-
       - run: pnpm install --frozen-lockfile
 
-      - name: Build action
+      - name: Build
         id: build_action
         shell: bash
         working-directory: ${{ inputs.dir }}
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          MATRIX_VALUES_JSON: ${{ matrix.matrix_values_json }}
         run: |
           set -euo pipefail
-          bun build.action.ts
+          node build.action.ts
 
   deploy:
     needs: build
-    if: ${{ inputs.deploy }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -53,16 +64,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: package.json
           cache: pnpm
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - uses: oven-sh/setup-bun@v2
 
       - run: pnpm install --frozen-lockfile
 
@@ -70,9 +76,10 @@ jobs:
         shell: bash
         working-directory: ${{ inputs.dir }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRETS: ${{ toJSON(secrets) }}
           BUILD_OUTPUTS_JSON: ${{ needs.build.outputs.payload }}
+          MATRIX_VALUES_JSON: ${{ matrix.matrix_values_json }}
           ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail
-          bun deploy.action.ts
+          node deploy.action.ts
