@@ -54,7 +54,7 @@ await build(async (env) => {
   }
 
   await $`pnpm build`;
-  await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy`;
+  await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy `;
 
   console.log(env)
 
