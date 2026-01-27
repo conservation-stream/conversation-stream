@@ -16,7 +16,7 @@ on:
 
 jobs:
   determine:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     outputs:
       count: ${{ steps.out.outputs.count }}
       matrix: ${{ steps.out.outputs.matrix }}

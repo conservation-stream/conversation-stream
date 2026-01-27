@@ -21,7 +21,7 @@ on:
 jobs:
   build:
     name: build (${{ matrix.matrix_key }})
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build_matrix || '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}') }}
@@ -54,7 +54,7 @@ jobs:
   deploy:
     name: deploy
     needs: build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
