@@ -62,7 +62,7 @@ await build(async (env) => {
   }
 
   await $`pnpm build`;
-  await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy `;
+  await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy`;
 
   const res = await artifact.uploadArtifact('build', [`${import.meta.dirname}/index.html`], import.meta.dirname);
   console.log(JSON.stringify(res));

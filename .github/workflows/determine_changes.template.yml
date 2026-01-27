@@ -23,6 +23,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: peaceiris/actions-export-envs@v1.1.0
+        id: envs
+
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -36,3 +39,5 @@ jobs:
         run: pnpm --filter @conservation-stream/internal-scripts run determine-changes
         env:
           SECRETS: ${{ toJSON(secrets) }}
+          ACTIONS_RUNTIME_TOKEN: ${{ steps.envs.outputs.ACTIONS_RUNTIME_TOKEN }}
+          ACTIONS_CACHE_URL: ${{ steps.envs.outputs.ACTIONS_CACHE_URL }}

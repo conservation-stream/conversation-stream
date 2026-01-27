@@ -65,6 +65,8 @@ export const CoreGithubActionEnvironment = z.object({
   RUNNER_TOOL_CACHE: z.string(),
 
   SECRETS: z.string().optional(),
+  ACTIONS_RUNTIME_TOKEN: z.string().optional(),
+  ACTIONS_CACHE_URL: z.string().optional(),
 });
 
 export type CoreGithubActionEnvironment = z.infer<typeof CoreGithubActionEnvironment>;
