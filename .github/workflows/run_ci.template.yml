@@ -22,7 +22,6 @@ jobs:
   build:
     name: build (${{ matrix.matrix_key }})
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build_matrix || '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}') }}
