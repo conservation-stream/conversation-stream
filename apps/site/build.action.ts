@@ -17,6 +17,7 @@ type BuildOutput = z.infer<typeof BuildOutput>;
 const RequiredSecrets = z.string().transform((value) => JSON.parse(value)).pipe(z.object({
   CLOUDFLARE_API_TOKEN: z.string(),
   CLOUDFLARE_ACCOUNT_ID: z.string(),
+  github_token: z.string(),
 }))
 
 
@@ -56,9 +57,7 @@ await build(async (env) => {
   await $`pnpm build`;
   await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy `;
 
-  console.log(env)
-
-  const res = await artifact.uploadArtifact('build', ['/Users/jameswilliams/Developer/conservation/apps/site/index.html'], '/Users/jameswilliams/Developer/conservation/apps/site');
+  const res = await artifact.uploadArtifact('build', [`${import.meta.dirname}/index.html`], import.meta.dirname);
   console.log(JSON.stringify(res));
 
 

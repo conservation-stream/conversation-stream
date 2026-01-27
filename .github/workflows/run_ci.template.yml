@@ -77,7 +77,6 @@ jobs:
         env:
           SECRETS: ${{ toJSON(secrets) }}
           BUILD_OUTPUTS_JSON: ${{ needs.build.outputs.payload }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MATRIX_VALUES_JSON: ${{ matrix.matrix_values_json }}
           ENVIRONMENT: ${{ inputs.environment }}
         run: |
