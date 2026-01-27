@@ -24,3 +24,4 @@ jobs:
     with:
       dir: ${{ matrix.dir }}
       name: ${{ matrix.name }}
+      environment: preview
