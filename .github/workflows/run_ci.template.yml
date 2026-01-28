@@ -30,15 +30,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build_matrix || '{"include":[{"matrix_key":"default","matrix_values_json":"{}"}]}') }}
-    outputs:
-      payload: ${{ steps.build_action.outputs.payload }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: peaceiris/actions-export-envs@v1.1.0
-        id: envs
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -56,12 +51,32 @@ jobs:
           SECRETS: ${{ toJSON(secrets) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MATRIX_VALUES_JSON: ${{ matrix.matrix_values_json }}
-          ACTIONS_RUNTIME_TOKEN: ${{ steps.envs.outputs.ACTIONS_RUNTIME_TOKEN }}
-          ACTIONS_CACHE_URL: ${{ steps.envs.outputs.ACTIONS_CACHE_URL }}
-
+          MATRIX_KEY: ${{ matrix.matrix_key }}
+          CI_NAME: ${{ inputs.name }}
         run: |
           set -euo pipefail
           node build.action.ts
+
+      # Upload metadata artifact (payload + artifact manifest)
+      - name: Write metadata
+        if: steps.build_action.outputs.metadata != ''
+        run: |
+          mkdir -p ${{ runner.temp }}/metadata
+          printf '%s\n' '${{ steps.build_action.outputs.metadata }}' > ${{ runner.temp }}/metadata/metadata.json
+
+      - name: Upload metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.name }}-${{ matrix.matrix_key }}-metadata
+          path: ${{ runner.temp }}/metadata
+
+      # Upload each declared artifact
+      - name: Upload artifacts
+        if: steps.build_action.outputs.artifact_paths != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.name }}-${{ matrix.matrix_key }}-artifacts
+          path: ${{ steps.build_action.outputs.artifact_paths }}
 
   deploy:
     name: deploy
@@ -72,9 +87,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
-      - uses: peaceiris/actions-export-envs@v1.1.0
-        id: envs
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -84,16 +96,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/artifacts
+
       - name: Deploy action
         shell: bash
         working-directory: ${{ inputs.dir }}
         env:
           SECRETS: ${{ toJSON(secrets) }}
-          BUILD_OUTPUTS_JSON: ${{ needs.build.outputs.payload }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ACTIONS_RUNTIME_TOKEN: ${{ steps.envs.outputs.ACTIONS_RUNTIME_TOKEN }}
-          ACTIONS_CACHE_URL: ${{ steps.envs.outputs.ACTIONS_CACHE_URL }}
-          MATRIX_VALUES_JSON: ${{ matrix.matrix_values_json }}
+          ARTIFACTS_DIR: ${{ runner.temp }}/artifacts
+          CI_NAME: ${{ inputs.name }}
           ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail

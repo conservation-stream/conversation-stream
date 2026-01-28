@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { build, type MatrixConfig } from "@conservation-stream/internal-actions";
+import { before, writeOutput, type MatrixConfig } from "@conservation-stream/internal-actions";
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -42,8 +42,13 @@ const expandMatrix = (matrix: MatrixConfig) => {
   };
 };
 
-await build(async (env) => {
-  const output = execSync(`pnpm -r --stream --filter "...[${env.event.before}]" exec -- pwd`);
+await before(async (env) => {
+  const baseSha = env.event.before;
+  if (!baseSha) {
+    throw new Error("Missing event.before for determine-changes");
+  }
+
+  const output = execSync(`pnpm -r --stream --filter "...[${baseSha}]" exec -- pwd`);
   const changed = output.toString("utf-8").split("\n").filter(Boolean);
 
   const packages = new Map<string, string>();
@@ -67,5 +72,5 @@ await build(async (env) => {
     })
   );
 
-  return { count: include.length, matrix: { include } };
+  await writeOutput(env.GITHUB_OUTPUT, { count: include.length, matrix: { include } });
 });

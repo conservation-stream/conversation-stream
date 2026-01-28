@@ -10,6 +10,7 @@
     "node:latest": "link:@types/node:latest"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "superjson": "catalog:"
   }
 }

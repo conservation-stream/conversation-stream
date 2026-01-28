@@ -1,16 +1,14 @@
 import { build } from "@conservation-stream/internal-actions";
-import { z } from "zod";
 
+interface Payload {
+  arch: string;
+  digest: string;
+  timestamp: Date;
+};
 
-export const schema = z.object({
-  arch: z.string(),
-  digest: z.string(),
-  timestamp: z.coerce.date(),
-});
+type Artifacts = never; // No artifacts for this build
 
-type schema = z.infer<typeof schema>;
-
-await build(async (env) => {
+await build<Payload, Artifacts>(async (env) => {
   // env.matrix contains the current matrix values, e.g. { arch: "amd64" }
   console.log(`Building for architecture: ${env.matrix.arch}`);
   // Simulate building for this architecture
@@ -21,6 +19,6 @@ await build(async (env) => {
       arch: env.matrix.arch,
       digest,
       timestamp: new Date(),
-    } satisfies schema,
+    },
   };
 });

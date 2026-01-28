@@ -1,18 +1,15 @@
-import { DefaultArtifactClient } from "@actions/artifact";
 import { build } from "@conservation-stream/internal-actions";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import { $, fs } from "zx";
 
-const artifact = new DefaultArtifactClient();
+interface Payload {
+  version_id?: string;
+  preview_url?: string;
+};
 
-export const BuildOutput = z.object({
-  version_id: z.string(),
-  preview_url: z.string(),
-});
-
-type BuildOutput = z.infer<typeof BuildOutput>;
+type Artifacts = "build";
 
 const RequiredSecrets = z.string().transform((value) => JSON.parse(value)).pipe(z.object({
   CLOUDFLARE_API_TOKEN: z.string(),
@@ -45,7 +42,7 @@ class TemporaryDirectory {
 // }
 
 
-await build(async (env) => {
+await build<Payload, Artifacts>(async (env) => {
   const secrets = RequiredSecrets.parse(env.SECRETS);
   using tmp = new TemporaryDirectory();
 
@@ -64,12 +61,14 @@ await build(async (env) => {
   await $`pnpm build`;
   await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy`;
 
-  const res = await artifact.uploadArtifact('build', [`${import.meta.dirname}/index.html`], import.meta.dirname);
-  console.log(JSON.stringify(res));
-
-  return;
-
-
+  return {
+    payload: {
+      // version_id and preview_url will be set when wrangler upload is implemented
+    },
+    artifacts: {
+      build: "./index.html",
+    },
+  };
 
   // const result = await run();
 
@@ -79,7 +78,10 @@ await build(async (env) => {
   // }
 
   // return {
-  //   payload: { version_id: upload.version_id, preview_url: upload.preview_url } satisfies BuildOutput
+  //   payload: { version_id: upload.version_id, preview_url: upload.preview_url },
+  //   artifacts: {
+  //     build: `${import.meta.dirname}/index.html`,
+  //   },
   // }
 })
 

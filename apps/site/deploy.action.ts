@@ -1,10 +1,26 @@
 import { deploy } from "@conservation-stream/internal-actions";
-import { BuildOutput } from "./build.action.ts";
+import fs from "node:fs/promises";
 
-await deploy(async (env) => {
-  console.log(`Deploying site version ${env.build.version_id} to ${env.build.preview_url}`);
-  console.log(`Preview URL: ${env.build.preview_url}`);
-  return {
-    environment_url: env.build.preview_url,
+interface Payload {
+  version_id?: string;
+  preview_url?: string;
+};
+
+type Artifacts = "build";
+
+await deploy<Payload, Artifacts>(async (env) => {
+  for (const build of env.build) {
+    console.log(`Deploying for matrix: ${JSON.stringify(env.matrix)}`);
+    if (build.version_id && build.preview_url) {
+      console.log(`Deploying site version ${build.version_id} to ${build.preview_url}`);
+      console.log(`Preview URL: ${build.preview_url}`);
+    } else {
+      console.log("No version info found; deploying static artifact only.");
+    }
   }
-}, { schema: BuildOutput });
+
+  console.log(`Build artifact path: ${env.artifacts.build}`);
+
+  const html = await fs.readFile(env.artifacts.build, "utf8");
+  console.log(`Artifact size: ${html.length} bytes`);
+});

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { env } from "node:process";
+import superjson from "superjson";
 import { z } from "zod";
 
 export const CoreGithubActionEnvironment = z.object({
@@ -107,14 +108,42 @@ export const writeOutput = async (path: string, outputs: Record<string, string |
   await fs.writeFile(path, output, "utf8");
 };
 
-type ActionResult = Record<string, string | number | boolean | object>;
+export interface ArtifactConfig {
+  path: string;
+  include?: string[];
+};
+
+interface BuildResult<TPayload, TArtifacts extends string> {
+  payload?: TPayload;
+  artifacts?: Record<TArtifacts, string | ArtifactConfig>;
+};
 
 type BuildEnv = CoreGithubActionEnvironment & {
   event: { before: string };
   matrix: Record<string, string>;
 };
 
-export const build = async (fn: (env: BuildEnv) => Promise<void | ActionResult> | void | ActionResult) => {
+type BeforeEnv = CoreGithubActionEnvironment & {
+  event: { before?: string };
+};
+
+export const before = async (fn: (env: BeforeEnv) => Promise<void> | void) => {
+  if (env.MATRIX_ONLY) return; // Allow importing for matrix extraction without running
+  const parsed = CoreGithubActionEnvironment.parse(env);
+  const event = await fs.readFile(parsed.GITHUB_EVENT_PATH, "utf8");
+
+  await fn({
+    ...parsed,
+    event: JSON.parse(event),
+  });
+};
+
+export const build = async <
+  TPayload = void,
+  TArtifacts extends string = never
+>(
+  fn: (env: BuildEnv) => Promise<void | BuildResult<TPayload, TArtifacts>> | void | BuildResult<TPayload, TArtifacts>
+) => {
   if (env.MATRIX_ONLY) return; // Allow importing for matrix extraction without running
   const parsed = CoreGithubActionEnvironment.parse(env);
   const event = await fs.readFile(parsed.GITHUB_EVENT_PATH, "utf8");
@@ -125,60 +154,153 @@ export const build = async (fn: (env: BuildEnv) => Promise<void | ActionResult> 
     event: JSON.parse(event),
     matrix,
   });
+
   if (!result) return;
-  await writeOutput(parsed.GITHUB_OUTPUT, result);
+
+  const artifactPaths: string[] = [];
+  const artifactMap: Record<string, string> = {};
+
+  if (result.artifacts) {
+    for (const [name, config] of Object.entries(result.artifacts)) {
+      const path = typeof config === "string" ? config : (config as ArtifactConfig).path;
+      artifactPaths.push(path);
+      artifactMap[name] = path;
+    }
+  }
+
+  const metadata = {
+    payload: result.payload,
+    artifacts: artifactMap,
+  };
+
+  // Write outputs for workflow to consume
+  await writeOutput(parsed.GITHUB_OUTPUT, {
+    metadata: superjson.stringify(metadata),
+    artifact_paths: artifactPaths.join("\n"),
+  });
 };
 
-/**
- * Convert matrix config to a typed record of current values.
- * { arch: ["amd64", "arm64"] } -> { arch: "amd64" | "arm64" }
- */
-type MatrixValues<T extends MatrixConfig> = {
-  [K in keyof T]: T[K][number];
-};
-
-type DeployEnv<TBuild, TMatrix extends MatrixConfig | undefined> = CoreGithubActionEnvironment & {
+type DeployEnv<TPayload, TArtifacts extends string> = CoreGithubActionEnvironment & {
   event: { before: string };
-  matrix: TMatrix extends MatrixConfig ? MatrixValues<TMatrix> : Record<string, string>;
-  build: TBuild;
-};
-
-type DeployOptions<TSchema extends z.ZodSchema, TMatrix extends MatrixConfig | undefined> = {
-  schema: TSchema;
-  matrix?: TMatrix;
+  matrix: Record<string, string>;
+  build: TPayload[];
+  artifacts: Record<TArtifacts, string>;
 };
 
 /**
- * Deploy function - receives single build output.
- * For matrix builds, this runs once per matrix entry with env.matrix containing the current values.
+ * Deploy function - receives build outputs from artifacts.
+ * For matrix builds, aggregates payloads from all matrix entries.
  * 
  * @example
- * await deploy(async (env) => {
- *   console.log(env.build.digest);
- *   console.log(env.matrix.arch); // typed if matrix option provided
- * }, { schema: BuildOutput, matrix });
+ * type Payload = { version: string; digest: string };
+ * type Artifacts = "build" | "logs";
+ * await deploy<Payload, Artifacts>(async (env) => {
+ *   console.log(env.build.version);
+ *   console.log(env.artifacts.build);
+ * });
  */
 export const deploy = async <
-  TSchema extends z.ZodSchema,
-  TMatrix extends MatrixConfig | undefined = undefined
+  TPayload = void,
+  TArtifacts extends string = never
 >(
-  fn: (env: DeployEnv<z.infer<TSchema>, TMatrix>) => Promise<void | ActionResult> | void | ActionResult,
-  options: DeployOptions<TSchema, TMatrix>
+  fn: (env: DeployEnv<TPayload, TArtifacts>) => Promise<void> | void
 ): Promise<void> => {
   if (env.MATRIX_ONLY) return; // Allow importing for matrix extraction without running
 
   const parsed = CoreGithubActionEnvironment.parse(env);
   const event = await fs.readFile(parsed.GITHUB_EVENT_PATH, "utf8");
   const matrix = parseMatrixEnv();
-  const output = z.object({ BUILD_OUTPUTS_JSON: z.string() }).parse(env);
-  const buildOutput = options.schema.parse(JSON.parse(output.BUILD_OUTPUTS_JSON));
 
-  const result = await fn({
+  // Read artifacts directory
+  const artifactsDir = env.ARTIFACTS_DIR;
+  if (!artifactsDir) {
+    throw new Error("ARTIFACTS_DIR environment variable is required");
+  }
+
+  const ciName = env.CI_NAME;
+  if (!ciName) throw new Error("CI_NAME environment variable is required");
+
+  // Scan for metadata artifacts
+  const metadataFiles: string[] = [];
+  try {
+    const entries = await fs.readdir(artifactsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (!entry.name.startsWith(ciName)) continue;
+      if (entry.name.endsWith("-metadata")) {
+        const metadataPath = `${artifactsDir}/${entry.name}/metadata.json`;
+        try {
+          await fs.access(metadataPath);
+          metadataFiles.push(metadataPath);
+        } catch {
+          // Skip if metadata.json doesn't exist
+        }
+      }
+    }
+  } catch (error) {
+    throw new Error(`Failed to read artifacts directory: ${error}`);
+  }
+
+  // Aggregate payloads and artifacts from all matrix entries
+  const payloads: TPayload[] = [];
+  const artifactPaths: Record<string, string> = {};
+
+  for (const metadataPath of metadataFiles) {
+    try {
+      const metadataContent = (await fs.readFile(metadataPath, "utf8")).trim();
+      // Deserialize with superjson to restore Date objects, etc.
+      const metadata = superjson.parse<{ payload?: TPayload; artifacts?: Record<string, string> }>(metadataContent);
+
+      if (metadata.payload) {
+        payloads.push(metadata.payload);
+      }
+
+      // Merge artifact paths (last one wins for same name)
+      if (metadata.artifacts) {
+        Object.assign(artifactPaths, metadata.artifacts);
+      }
+    } catch (error) {
+      console.warn(`Failed to parse metadata file ${metadataPath}:`, error);
+    }
+  }
+
+  const buildPayload = payloads;
+
+  const artifacts: Record<string, string> = {};
+  const artifactDirs = (await fs.readdir(artifactsDir, { withFileTypes: true }))
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .filter(name => name.startsWith(ciName) && name.endsWith("-artifacts"))
+    .map(name => `${artifactsDir}/${name}`);
+
+  const resolveArtifactPath = async (relativePath: string): Promise<string> => {
+    const normalizedPath = relativePath.startsWith("./") ? relativePath.slice(2) : relativePath;
+    const candidates = [normalizedPath, relativePath];
+
+    for (const dir of artifactDirs) {
+      for (const candidate of candidates) {
+        const fullPath = `${dir}/${candidate}`;
+        try {
+          await fs.access(fullPath);
+          return fullPath;
+        } catch {
+          // Keep trying other candidates/directories
+        }
+      }
+    }
+
+    return relativePath;
+  };
+
+  for (const [name, relativePath] of Object.entries(artifactPaths)) {
+    artifacts[name] = await resolveArtifactPath(relativePath);
+  }
+
+  await fn({
     ...parsed,
     event: JSON.parse(event),
-    matrix: matrix as DeployEnv<z.infer<TSchema>, TMatrix>["matrix"],
-    build: buildOutput,
+    matrix,
+    build: buildPayload,
+    artifacts: artifacts as Record<TArtifacts, string>,
   });
-  if (!result) return;
-  await writeOutput(parsed.GITHUB_OUTPUT, result);
 };
