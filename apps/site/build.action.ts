@@ -61,12 +61,17 @@ await build<Payload, Artifacts>(async (env) => {
   await $`pnpm build`;
   await $`pnpm --filter @conservation-stream/site --prod deploy ${tmp.path} --legacy`;
 
+  const artifactPath = path.relative(
+    env.GITHUB_WORKSPACE,
+    path.join(import.meta.dirname, "index.html")
+  );
+
   return {
     payload: {
       // version_id and preview_url will be set when wrangler upload is implemented
     },
     artifacts: {
-      build: "./index.html",
+      build: artifactPath,
     },
   };
 
