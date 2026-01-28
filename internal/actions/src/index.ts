@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { env } from "node:process";
 import superjson from "superjson";
 import { z } from "zod";
@@ -159,12 +160,43 @@ export const build = async <
 
   const artifactPaths: string[] = [];
   const artifactMap: Record<string, string> = {};
+  const workspaceRoot = parsed.GITHUB_WORKSPACE;
+  const ciName = env.CI_NAME ?? "ci";
+  const stagingRoot = path.join(workspaceRoot, ".artifacts", ciName);
+
+  const ensureWorkspaceRelativePath = async (name: string, artifactPath: string) => {
+    const absolutePath = path.isAbsolute(artifactPath)
+      ? artifactPath
+      : path.resolve(process.cwd(), artifactPath);
+
+    if (absolutePath.startsWith(`${workspaceRoot}${path.sep}`) || absolutePath === workspaceRoot) {
+      return path.relative(workspaceRoot, absolutePath);
+    }
+
+    await fs.mkdir(stagingRoot, { recursive: true });
+    const stat = await fs.stat(absolutePath);
+
+    if (stat.isDirectory()) {
+      const targetDir = path.join(stagingRoot, name);
+      await fs.rm(targetDir, { recursive: true, force: true });
+      await fs.cp(absolutePath, targetDir, { recursive: true });
+      return path.relative(workspaceRoot, targetDir);
+    }
+
+    const targetDir = path.join(stagingRoot, name);
+    await fs.rm(targetDir, { recursive: true, force: true });
+    await fs.mkdir(targetDir, { recursive: true });
+    const targetFile = path.join(targetDir, path.basename(absolutePath));
+    await fs.copyFile(absolutePath, targetFile);
+    return path.relative(workspaceRoot, targetFile);
+  };
 
   if (result.artifacts) {
     for (const [name, config] of Object.entries(result.artifacts)) {
-      const path = typeof config === "string" ? config : (config as ArtifactConfig).path;
-      artifactPaths.push(path);
-      artifactMap[name] = path;
+      const artifactPath = typeof config === "string" ? config : (config as ArtifactConfig).path;
+      const relativePath = await ensureWorkspaceRelativePath(name, artifactPath);
+      artifactPaths.push(relativePath);
+      artifactMap[name] = relativePath;
     }
   }
 
@@ -275,7 +307,9 @@ export const deploy = async <
 
   const resolveArtifactPath = async (relativePath: string): Promise<string> => {
     const normalizedPath = relativePath.startsWith("./") ? relativePath.slice(2) : relativePath;
-    const candidates = [normalizedPath, relativePath];
+    const baseCandidates = [normalizedPath, relativePath];
+    const basenameCandidates = baseCandidates.map(candidate => path.basename(candidate));
+    const candidates = [...baseCandidates, ...basenameCandidates];
 
     for (const dir of artifactDirs) {
       for (const candidate of candidates) {
@@ -286,6 +320,16 @@ export const deploy = async <
         } catch {
           // Keep trying other candidates/directories
         }
+      }
+      // If the artifact path was a directory, upload-artifact downloads
+      // the directory contents directly into the artifact root.
+      try {
+        const entries = await fs.readdir(dir);
+        if (entries.length > 0) {
+          return dir;
+        }
+      } catch {
+        // Ignore and continue
       }
     }
 
