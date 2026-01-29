@@ -17,7 +17,14 @@ const run = async (cwd: string, secrets: RequiredSecrets) => {
     ...$.env,
     WRANGLER_OUTPUT_FILE_PATH: file.path,
   }
-  await $({ cwd, env: { CLOUDFLARE_API_TOKEN: secrets.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: secrets.CLOUDFLARE_ACCOUNT_ID } })`pnpm --filter @conservation-stream/site exec wrangler versions upload`;
+  await $({
+    cwd,
+    env: {
+      ...process.env,
+      CLOUDFLARE_API_TOKEN: secrets.CLOUDFLARE_API_TOKEN,
+      CLOUDFLARE_ACCOUNT_ID: secrets.CLOUDFLARE_ACCOUNT_ID,
+    },
+  })`pnpm --filter @conservation-stream/site exec wrangler versions upload`;
   const contents = await readFile(file.path, "utf8");
   return contents.split("\n").filter(Boolean).map(line => JSON.parse(line)) as WranglerEvent[];
 }
