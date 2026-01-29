@@ -35,12 +35,14 @@ export class Compose extends pulumi.ComponentResource {
     this.dir = args.dir;
     // pulumi.output() deeply resolves all nested Input values
     this.config = pulumi.output(args.config as pulumi.Input<ComposeSpecification>);
-    this.rendered = this.config.apply(config => yaml.stringify(config));
     this.path = `${tmpdir()}/${this.name}-docker-compose.yml`
-    this.rendered.apply(rendered => {
+    writeFileSync(this.path, '');
+
+    this.rendered = this.config.apply(config => {
+      const rendered = yaml.stringify(config);
       writeFileSync(this.path, rendered);
-      console.log(`wrote docker-compose.yml to ${this.path}`);
-    });
+      return rendered;
+    })
   }
 }
 

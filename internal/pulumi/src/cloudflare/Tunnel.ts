@@ -13,7 +13,7 @@ type Ingress = cloudflare.types.input.ZeroTrustTunnelCloudflaredConfigConfigIngr
 
 interface CoreCloudflareTunnelArgs {
   accountId: string;
-  zoneId: string;
+  zoneId: pulumi.Output<string>;
 }
 
 interface CloudflareTunnelArgsWithTopLevelHostname extends CoreCloudflareTunnelArgs {
@@ -111,7 +111,7 @@ export const composeConfigFromTunnel = (tunnel: CloudflareTunnel) => {
     cf_tunnel: {
       image: "cloudflare/cloudflared:latest",
       restart: 'unless-stopped',
-      command: 'tunnel run --token $TUNNEL_TOKEN',
+      command: 'tunnel run',
       environment: {
         TUNNEL_TOKEN: tunnel.token,
       }

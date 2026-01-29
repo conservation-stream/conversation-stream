@@ -23,6 +23,7 @@ const run = async (cwd: string, secrets: RequiredSecrets) => {
       ...process.env,
       CLOUDFLARE_API_TOKEN: secrets.CLOUDFLARE_API_TOKEN,
       CLOUDFLARE_ACCOUNT_ID: secrets.CLOUDFLARE_ACCOUNT_ID,
+      WRANGLER_OUTPUT_FILE_PATH: file.path,
     },
   })`pnpm --filter @conservation-stream/site exec wrangler versions upload`;
   const contents = await readFile(file.path, "utf8");
