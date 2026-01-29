@@ -1,0 +1,16 @@
+{
+  "name": "@conservation-stream/kb-infra",
+  "type": "module",
+  "private": true,
+  "main": "index.ts",
+  "devDependencies": {
+    "@conservation-stream/internal-pulumi": "workspace:*",
+    "@pulumi/command": "catalog:",
+    "@pulumi/digitalocean": "catalog:",
+    "@pulumi/pulumi": "catalog:",
+    "@pulumi/random": "catalog:",
+    "@pulumi/tls": "catalog:",
+    "@types/node": "latest"
+  },
+  "dependencies": {}
+}

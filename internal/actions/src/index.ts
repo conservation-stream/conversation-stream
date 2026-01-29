@@ -69,26 +69,13 @@ export const CoreGithubActionEnvironment = z.object({
   SECRETS: z.string().optional(),
   ACTIONS_RUNTIME_TOKEN: z.string().optional(),
   ACTIONS_CACHE_URL: z.string().optional(),
-});
+}).loose();
 
 export type CoreGithubActionEnvironment = z.infer<typeof CoreGithubActionEnvironment>;
 
-/**
- * Matrix configuration type for packages that need multi-arch/multi-target builds.
- * Keys are matrix dimension names, values are arrays of possible values.
- * 
- * @example
- * export const matrix = {
- *   arch: ["amd64", "arm64"],
- *   os: ["linux", "darwin"],
- * } as const satisfies MatrixConfig;
- */
 export type MatrixConfig = Record<string, readonly string[]>;
 
-/**
- * Parse MATRIX_VALUES_JSON env var.
- * Returns a record of matrix key names to their values, e.g. { arch: "amd64" }
- */
+
 const parseMatrixEnv = (): Record<string, string> => {
   const json = env.MATRIX_VALUES_JSON;
   if (!json || json === "{}") return {};

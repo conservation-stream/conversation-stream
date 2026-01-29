@@ -1,0 +1,6 @@
+name: kb-infra
+description: kb
+runtime:
+  name: nodejs
+  options:
+    packagemanager: pnpm

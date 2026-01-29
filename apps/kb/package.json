@@ -4,7 +4,8 @@
   "private": true,
   "devDependencies": {
     "@conservation-stream/internal-actions": "workspace:*",
-    "@types/node": "latest"
+    "@types/node": "latest",
+    "zx": "^8.8.5"
   },
   "dependencies": {
     "zod": "catalog:"

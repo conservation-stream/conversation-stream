@@ -1,0 +1,1 @@
+Planetscale has a Terraform/pulumi provider that is not up to date and is not recommended for use. They are working on a 1.0 that supports postgres but that is not ready yet. This is "planetscale at home" using the cli which will be removed when the 1.0 is ready.

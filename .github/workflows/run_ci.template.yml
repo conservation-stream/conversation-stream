@@ -87,6 +87,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Temporary until pscale 1.0 is released
+      - name: Setup pscale
+        uses: planetscale/setup-pscale-action@v1
+
+      - uses: pulumi/actions@v6
+
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

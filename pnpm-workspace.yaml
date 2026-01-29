@@ -5,11 +5,20 @@ packages:
   - apps/kb/bridge
   - apps/kb/infra
   - internal/errors
+  - internal/pulumi
   - internal/actions
   - internal/scripts
   - packages/mtx-agent
   - packages/mtx-manager
 
 catalog:
-  zod: ^4.3.6
+  '@pulumi/cloudflare': ^6.12.0
+  '@pulumi/cloudinit': ^1.4.15
+  '@pulumi/command': ^1.1.3
+  '@pulumi/digitalocean': ^4.56.0
+  '@pulumi/pulumi': ^3.217.1
+  '@pulumi/random': ^4.19.1
+  '@pulumi/tls': ^5.2.3
   superjson: ^2.2.1
+  zod: ^4.3.6
+

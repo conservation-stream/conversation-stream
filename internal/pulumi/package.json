@@ -1,0 +1,26 @@
+{
+  "name": "@conservation-stream/internal-pulumi",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@pulumi/cloudflare": "catalog:",
+    "@pulumi/cloudinit": "catalog:",
+    "@pulumi/command": "catalog:",
+    "@pulumi/digitalocean": "catalog:",
+    "dedent": "^1.7.1",
+    "yaml": "^2.8.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@pulumi/pulumi": "catalog:",
+    "@pulumi/random": "catalog:",
+    "@pulumi/tls": "catalog:"
+  }
+}

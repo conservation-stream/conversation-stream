@@ -11,13 +11,13 @@ interface Payload {
 
 type Artifacts = "build";
 
-const run = async (cwd: string) => {
+const run = async (cwd: string, secrets: RequiredSecrets) => {
   using file = new TemporaryHandle();
   $.env = {
     ...$.env,
     WRANGLER_OUTPUT_FILE_PATH: file.path,
   }
-  await $({ cwd })`pnpm --filter @conservation-stream/site exec wrangler versions upload`;
+  await $({ cwd, env: { CLOUDFLARE_API_TOKEN: secrets.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: secrets.CLOUDFLARE_ACCOUNT_ID } })`pnpm --filter @conservation-stream/site exec wrangler versions upload`;
   const contents = await readFile(file.path, "utf8");
   return contents.split("\n").filter(Boolean).map(line => JSON.parse(line)) as WranglerEvent[];
 }
@@ -26,6 +26,8 @@ const RequiredSecrets = z.string().transform((value) => JSON.parse(value)).pipe(
   CLOUDFLARE_API_TOKEN: z.string(),
   CLOUDFLARE_ACCOUNT_ID: z.string(),
 }))
+
+type RequiredSecrets = z.infer<typeof RequiredSecrets>;
 
 await deploy<Payload, Artifacts>(async (env) => {
   const secrets = RequiredSecrets.parse(env.SECRETS);
@@ -38,13 +40,7 @@ await deploy<Payload, Artifacts>(async (env) => {
 
   console.log(`Build artifact path: ${env.artifacts.build}`);
 
-  $.env = {
-    ...$.env,
-    CLOUDFLARE_API_TOKEN: secrets.CLOUDFLARE_API_TOKEN,
-    CLOUDFLARE_ACCOUNT_ID: secrets.CLOUDFLARE_ACCOUNT_ID,
-  }
-
-  const result = await run(env.GITHUB_WORKSPACE);
+  const result = await run(env.GITHUB_WORKSPACE, secrets);
 
   const upload = result.find(event => event.type === "version-upload");
   if (!upload) throw new Error("No version upload event found");
