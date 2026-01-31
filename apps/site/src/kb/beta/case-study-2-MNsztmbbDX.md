@@ -1,1 +1,1 @@
-Case study 102. Some extra information.
+Case study 102. Some extra information!
